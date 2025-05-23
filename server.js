@@ -4,12 +4,36 @@ import { exec } from 'child_process'; // exec is generally preferred over execSy
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import session from 'express-session'; // Added for session management
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = 3001; // 后端服务器端口
+
+// Middleware to parse JSON bodies
+app.use(express.json());
+
+// Session configuration
+app.use(session({
+    secret: 'your secret key', // Change this to a random string
+    resave: false,
+    saveUninitialized: true,
+    cookie: { secure: false } // Set to true if using HTTPS
+}));
+
+// Read admin credentials from config file
+let adminConfig = { adminUsername: '', adminPassword: '' };
+try {
+    const configPath = path.join(__dirname, 'admin.config.json');
+    const configFile = fs.readFileSync(configPath, 'utf8');
+    adminConfig = JSON.parse(configFile);
+} catch (error) {
+    console.error('Failed to load admin config:', error);
+    // Handle error appropriately, e.g., by exiting or using default credentials
+    process.exit(1); // Exit if config is missing or unreadable
+}
 
 // Multer 配置：将上传的文件保存到 'uploads_tmp/' 目录
 const UPLOAD_DIR = path.join(__dirname, 'uploads_tmp');
@@ -26,6 +50,49 @@ const storage = multer.diskStorage({
   }
 });
 const upload = multer({ storage: storage });
+
+// Serve static files from 'src' directory (for admin pages)
+app.use('/admin/static', express.static(path.join(__dirname, 'src')));
+
+// Route to serve the admin login page
+app.get('/admin/login', (req, res) => {
+    res.sendFile(path.join(__dirname, 'src', 'admin-login.html'));
+});
+
+// Admin login endpoint
+app.post('/admin/login', (req, res) => {
+    const { username, password } = req.body;
+    if (username === adminConfig.adminUsername && password === adminConfig.adminPassword) {
+        req.session.isAdmin = true;
+        res.json({ success: true, message: 'Login successful' });
+    } else {
+        res.status(401).json({ success: false, message: 'Invalid credentials' });
+    }
+});
+
+// Middleware to protect admin routes
+function requireAdminLogin(req, res, next) {
+    if (req.session.isAdmin) {
+        next();
+    } else {
+        res.redirect('/admin/login');
+    }
+}
+
+// Route to serve the admin dashboard page
+app.get('/admin/dashboard', requireAdminLogin, (req, res) => {
+    res.sendFile(path.join(__dirname, 'src', 'admin-dashboard.html'));
+});
+
+// Admin logout endpoint
+app.get('/admin/logout', (req, res) => {
+    req.session.destroy(err => {
+        if (err) {
+            return res.status(500).send('Could not log out.');
+        }
+        res.redirect('/admin/login');
+    });
+});
 
 app.post('/upload-to-hdfs-via-server', upload.single('file'), (req, res) => {
   const file = req.file;

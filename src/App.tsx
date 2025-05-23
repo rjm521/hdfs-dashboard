@@ -7,6 +7,7 @@ import StorageDashboard from './components/StorageDashboard';
 import FilePreview from './components/FilePreview';
 import HdfsConfigModal from './components/HdfsConfigModal';
 import PathBreadcrumbs from './components/PathBreadcrumbs';
+import AdminLoginModal from './components/auth/AdminLoginModal';
 import { HDFSFile, StorageInfo } from './types';
 import {
   listDirectory,
@@ -32,12 +33,19 @@ const App: React.FC = () => {
   });
   const [selectedFile, setSelectedFile] = useState<HDFSFile | null>(null);
   const [showConfig, setShowConfig] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const { addToast } = useToast();
 
   useEffect(() => {
-    fetchDirectoryContents(currentPath);
-    fetchStorageInfo();
-  }, [currentPath]);
+    if (isLoggedIn) {
+      fetchDirectoryContents(currentPath);
+      fetchStorageInfo();
+    }
+  }, [currentPath, isLoggedIn]);
+
+  const handleLoginSuccess = () => {
+    setIsLoggedIn(true);
+  };
 
   const fetchDirectoryContents = async (path: string) => {
     try {
@@ -290,6 +298,10 @@ const App: React.FC = () => {
   const handlePathChange = (newPath: string) => {
     setCurrentPath(newPath);
   };
+
+  if (!isLoggedIn) {
+    return <AdminLoginModal onLoginSuccess={handleLoginSuccess} />;
+  }
 
   return (
     <div className="container mx-auto p-4">
