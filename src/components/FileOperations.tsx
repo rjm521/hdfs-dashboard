@@ -23,7 +23,7 @@ const FileOperations: React.FC<FileOperationsProps> = ({ onUpload }) => {
 
   return (
     <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-      <h3 className="text-lg font-semibold mb-4">File Operations</h3>
+      <h3 className="text-lg font-semibold mb-4">文件操作</h3>
       <div className="flex items-center space-x-4">
         <input
           type="file"
@@ -37,7 +37,7 @@ const FileOperations: React.FC<FileOperationsProps> = ({ onUpload }) => {
             !file && 'opacity-50 cursor-not-allowed'
           }`}
         >
-          <Upload className="mr-2" size={18} /> Upload
+          <Upload className="mr-2" size={18} /> 上传文件
         </button>
       </div>
     </div>
