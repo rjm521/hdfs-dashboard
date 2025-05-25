@@ -9,31 +9,49 @@ import session from 'express-session'; // Added for session management
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// 读取应用配置文件
+let appConfig = {};
+try {
+  const configPath = path.join(__dirname, 'app.config.json');
+  const configFile = fs.readFileSync(configPath, 'utf8');
+  appConfig = JSON.parse(configFile);
+  console.log('后端服务已加载应用配置:', configPath);
+} catch (error) {
+  console.error('无法加载应用配置文件，使用默认配置:', error);
+  // 默认配置
+  appConfig = {
+    hdfs: {
+      namenode: { host: '9.134.167.146', port: '8443', scheme: 'https' },
+      auth: { username: 'credit_card_all', password: 'credit_card_all' },
+      paths: { gatewayPath: '/gateway/fithdfs/webhdfs/v1/', basePath: 'wx_credit_card_all' }
+    },
+    server: { backend: { port: 3001 } },
+    admin: { username: 'jimmyjmren', password: 'password' },
+    session: { secret: 'your-secret-key-change-this-in-production' }
+  };
+}
+
+const { hdfs, server, admin, session: sessionConfig } = appConfig;
+
 const app = express();
-const PORT = 3001; // 后端服务器端口
+const PORT = server.backend.port; // 从配置读取端口
 
 // Middleware to parse JSON bodies
 app.use(express.json());
 
 // Session configuration
 app.use(session({
-    secret: 'your secret key', // Change this to a random string
+    secret: sessionConfig.secret, // 从配置读取session密钥
     resave: false,
     saveUninitialized: true,
     cookie: { secure: false } // Set to true if using HTTPS
 }));
 
-// Read admin credentials from config file
-let adminConfig = { adminUsername: '', adminPassword: '' };
-try {
-    const configPath = path.join(__dirname, 'admin.config.json');
-    const configFile = fs.readFileSync(configPath, 'utf8');
-    adminConfig = JSON.parse(configFile);
-} catch (error) {
-    console.error('Failed to load admin config:', error);
-    // Handle error appropriately, e.g., by exiting or using default credentials
-    process.exit(1); // Exit if config is missing or unreadable
-}
+// 使用配置中的管理员账户信息
+const adminConfig = {
+  adminUsername: admin.username,
+  adminPassword: admin.password
+};
 
 // Multer 配置：将上传的文件保存到 'uploads_tmp/' 目录
 const UPLOAD_DIR = path.join(__dirname, 'uploads_tmp');
@@ -97,7 +115,7 @@ app.get('/admin/logout', (req, res) => {
 app.post('/upload-to-hdfs-via-server', upload.single('file'), (req, res) => {
   const file = req.file;
   const hdfsBasePath = req.body.hdfsPath;
-  
+
   if (!file) {
     return res.status(400).json({ message: '错误：没有文件被上传。' });
   }
@@ -110,12 +128,11 @@ app.post('/upload-to-hdfs-via-server', upload.single('file'), (req, res) => {
   const originalFileName = req.file.originalname; // 使用 multer 清理过的原始文件名
   const hdfsDestinationPath = path.posix.join(hdfsBasePath, originalFileName.replace(/\s+/g, '_')); // Ensure consistent filename
 
-  const hdfsUser = 'credit_card_all:credit_card_all';
-  // 注意：hdfsDestinationPath 必须以 / 开头，如果它不是从根目录开始的相对路径的话。
-  // WebHDFS的路径通常是绝对的，从HDFS的根目录算起。
-  // 我们假设 hdfsDestinationPath 已经是正确的绝对路径了，例如 /test/hello_world.txt
-  const nameNodeUrl = `https://9.134.167.146:8443/gateway/fithdfs/webhdfs/v1${hdfsDestinationPath}?op=CREATE&overwrite=true`;
-  
+  // 使用配置的HDFS认证信息
+  const hdfsUser = `${hdfs.auth.username}:${hdfs.auth.password}`;
+  // 使用配置的HDFS连接信息构建URL
+  const nameNodeUrl = `${hdfs.namenode.scheme}://${hdfs.namenode.host}:${hdfs.namenode.port}${hdfs.paths.gatewayPath}${hdfsDestinationPath}?op=CREATE&overwrite=true`;
+
   // 在 Windows 上，tempFilePath 可能包含反斜杠，需要处理。
   // 对于 curl -T，路径最好是 POSIX 风格的，或者确保引号正确处理了 Windows 路径。
   // Multer 生成的 file.path 通常是适合当前操作系统的，但为了 curl 的健壮性，可以替换反斜杠。
@@ -145,7 +162,7 @@ app.post('/upload-to-hdfs-via-server', upload.single('file'), (req, res) => {
     if (stderr){
         console.warn("[Server] HDFS 上传 stderr (可能包含非致命警告或信息):", stderr);
     }
-    
+
     // 基于您的 curl 命令，它使用 -L，所以会跟随重定向。
     // 成功的标志是最终的 DataNode 返回 201 Created (对于 PUT op=CREATE)。
     // 但是 curl -L 默认不输出最终的 HTTP 状态码，stdout 可能为空，stderr 可能包含进度。
@@ -184,4 +201,5 @@ app.post('/upload-to-hdfs-via-server', upload.single('file'), (req, res) => {
 app.listen(PORT, () => {
   console.log(`后端服务器运行在 http://localhost:${PORT}`);
   console.log(`临时上传目录: ${UPLOAD_DIR}`);
-}); 
+  console.log(`HDFS配置: ${hdfs.namenode.scheme}://${hdfs.namenode.host}:${hdfs.namenode.port}`);
+});

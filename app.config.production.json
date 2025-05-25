@@ -1,0 +1,38 @@
+{
+  "hdfs": {
+    "namenode": {
+      "host": "your-hdfs-namenode-host",
+      "port": "8443",
+      "scheme": "https"
+    },
+    "datanode": {
+      "host": "your-hdfs-datanode-host",
+      "port": "50075",
+      "scheme": "http"
+    },
+    "auth": {
+      "username": "your-hdfs-username",
+      "password": "your-hdfs-password"
+    },
+    "paths": {
+      "gatewayPath": "/gateway/your-cluster/webhdfs/v1/",
+      "basePath": "your-base-path"
+    }
+  },
+  "server": {
+    "backend": {
+      "port": 3001
+    },
+    "frontend": {
+      "port": 5173
+    }
+  },
+  "admin": {
+    "username": "admin",
+    "password": "change-this-strong-password"
+  },
+  "session": {
+    "secret": "change-this-to-a-random-strong-secret-key-in-production"
+  },
+  "environment": "production"
+}

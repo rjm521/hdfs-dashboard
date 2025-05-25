@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  hdfs-dashboard:
+    build: .
+    container_name: hdfs-dashboard
+    ports:
+      - "5173:5173"  # 前端端口
+      - "3001:3001"  # 后端API端口
+    volumes:
+      # 挂载配置文件，便于修改配置而不重新构建镜像
+      - ./app.config.json:/app/app.config.json:ro
+      # 挂载上传临时目录（可选，用于持久化）
+      - ./uploads_tmp:/app/uploads_tmp
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/admin/login", "||", "exit", "1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - hdfs-network
+
+  # 可选：如果需要运行自己的 HDFS 集群（开发环境）
+  # namenode:
+  #   image: apache/hadoop:3
+  #   container_name: hdfs-namenode
+  #   ports:
+  #     - "9870:9870"  # NameNode Web UI
+  #     - "8020:8020"  # NameNode RPC
+  #   environment:
+  #     - CLUSTER_NAME=test
+  #   volumes:
+  #     - namenode_data:/hadoop/dfs/name
+  #   networks:
+  #     - hdfs-network
+
+  # datanode:
+  #   image: apache/hadoop:3
+  #   container_name: hdfs-datanode
+  #   ports:
+  #     - "9864:9864"  # DataNode Web UI
+  #   environment:
+  #     - SERVICE_PRECONDITION=namenode:9870
+  #   volumes:
+  #     - datanode_data:/hadoop/dfs/data
+  #   networks:
+  #     - hdfs-network
+  #   depends_on:
+  #     - namenode
+
+networks:
+  hdfs-network:
+    driver: bridge
+
+volumes:
+  # namenode_data:
+  # datanode_data:
+  uploads_tmp:
