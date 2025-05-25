@@ -6,15 +6,23 @@ import { Readable } from 'stream';
 import { HDFSFile, StorageInfo } from '../types';
 import { getHdfsConfig } from '../config';
 
-const NAME_NODE_PROXY_PREFIX = '/namenode-api';
+// 检测是否在开发环境中
+const isDevelopment = import.meta.env.DEV;
+
+// 根据环境选择API前缀
+const NAME_NODE_PROXY_PREFIX = isDevelopment ? '/namenode-api' : '/api/hdfs';
 // DATA_NODE_PROXY_PREFIX is not strictly needed here as the rewritten Location header will be used directly
 
 function getDefaultHeaders(): HeadersInit {
-  const { username, password } = getHdfsConfig();
-  const auth = Buffer.from(`${username}:${password}`).toString('base64');
-  return {
-    'Authorization': `Basic ${auth}`,
-  };
+  // 在生产环境下，认证将由后端处理，所以不需要添加Authorization头
+  if (isDevelopment) {
+    const { username, password } = getHdfsConfig();
+    const auth = Buffer.from(`${username}:${password}`).toString('base64');
+    return {
+      'Authorization': `Basic ${auth}`,
+    };
+  }
+  return {};
 }
 
 interface HDFSFileStatus {
@@ -92,14 +100,24 @@ function prepareProxyPath(hdfsPath: string): string {
  */
 export const listDirectory = async (dirPath: string): Promise<HDFSFile[]> => {
   const cleanDirPath = dirPath.replace(/\/+/g, '/');
-  const proxyReadyPath = prepareProxyPath(cleanDirPath);
-  const url = `${NAME_NODE_PROXY_PREFIX}/${proxyReadyPath}?op=LISTSTATUS`;
+
+  let url: string;
+  if (isDevelopment) {
+    // 开发环境：使用Vite代理
+    const proxyReadyPath = prepareProxyPath(cleanDirPath);
+    url = `${NAME_NODE_PROXY_PREFIX}/${proxyReadyPath}?op=LISTSTATUS`;
+  } else {
+    // 生产环境：使用后端API代理
+    const apiPath = cleanDirPath === '/' ? '' : cleanDirPath.replace(/^\//, '');
+    url = `${NAME_NODE_PROXY_PREFIX}/${apiPath}?op=LISTSTATUS`;
+  }
+
   console.log('[listDirectory] Requesting:', url);
-  const response = await fetch(url, { 
-    headers: { 
-      ...getDefaultHeaders(), 
-      'Accept': 'application/json' 
-    } 
+  const response = await fetch(url, {
+    headers: {
+      ...getDefaultHeaders(),
+      'Accept': 'application/json'
+    }
   });
   if (!response.ok) {
     const errorText = await response.text();

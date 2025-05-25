@@ -143,6 +143,79 @@ app.get('/admin/logout', (req, res) => {
     });
 });
 
+// HDFS API 代理端点
+// 通用HDFS代理函数
+function proxyToHdfs(req, res, operation, hdfsPath = '') {
+  // 构建HDFS API URL
+  const baseUrl = `${hdfs.namenode.scheme}://${hdfs.namenode.host}:${hdfs.namenode.port}${hdfs.paths.gatewayPath}`;
+  const fullPath = hdfsPath ? `${hdfs.paths.basePath}/${hdfsPath}` : hdfs.paths.basePath;
+  const url = `${baseUrl}${fullPath}?op=${operation}&${new URLSearchParams(req.query).toString()}`;
+
+  console.log(`[HDFS API PROXY] ${req.method} ${url}`);
+
+  // 使用curl命令调用HDFS API
+  const auth = `${hdfs.auth.username}:${hdfs.auth.password}`;
+  const curlCmd = `curl -k -u "${auth}" -X ${req.method} "${url}" -H "Content-Type: application/json"`;
+
+  exec(curlCmd, (error, stdout, stderr) => {
+    if (error) {
+      console.error(`[HDFS API PROXY] Error: ${error.message}`);
+      console.error(`[HDFS API PROXY] stderr: ${stderr}`);
+      return res.status(500).json({
+        error: 'HDFS API调用失败',
+        message: error.message,
+        details: stderr
+      });
+    }
+
+    console.log(`[HDFS API PROXY] stdout: ${stdout}`);
+
+    try {
+      // 尝试解析JSON响应
+      const jsonResponse = JSON.parse(stdout);
+      res.json(jsonResponse);
+    } catch (parseError) {
+      console.error(`[HDFS API PROXY] JSON解析错误: ${parseError.message}`);
+      console.error(`[HDFS API PROXY] 原始响应: ${stdout}`);
+
+      // 如果不是JSON，返回原始文本
+      res.setHeader('Content-Type', 'text/plain');
+      res.send(stdout);
+    }
+  });
+}
+
+// HDFS API 路由
+app.get('/api/hdfs/*', (req, res) => {
+  const hdfsPath = req.params[0] || '';
+  const operation = req.query.op || 'LISTSTATUS';
+  proxyToHdfs(req, res, operation, hdfsPath);
+});
+
+app.put('/api/hdfs/*', (req, res) => {
+  const hdfsPath = req.params[0] || '';
+  const operation = req.query.op || 'CREATE';
+  proxyToHdfs(req, res, operation, hdfsPath);
+});
+
+app.post('/api/hdfs/*', (req, res) => {
+  const hdfsPath = req.params[0] || '';
+  const operation = req.query.op || 'MKDIR';
+  proxyToHdfs(req, res, operation, hdfsPath);
+});
+
+app.delete('/api/hdfs/*', (req, res) => {
+  const hdfsPath = req.params[0] || '';
+  const operation = req.query.op || 'DELETE';
+  proxyToHdfs(req, res, operation, hdfsPath);
+});
+
+// 获取HDFS根目录状态的简化端点
+app.get('/api/hdfs', (req, res) => {
+  const operation = req.query.op || 'LISTSTATUS';
+  proxyToHdfs(req, res, operation, '');
+});
+
 app.post('/upload-to-hdfs-via-server', upload.single('file'), (req, res) => {
   const file = req.file;
   const hdfsBasePath = req.body.hdfsPath;

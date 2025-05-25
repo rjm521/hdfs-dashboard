@@ -441,7 +441,13 @@ npm run server
 
 ## 更新日志
 
-### v2.1.0 (最新)
+### v2.1.1 (最新)
+- 🐛 **修复生产环境HDFS API 404错误**: 前端在生产环境下通过后端API代理访问HDFS，解决Vite preview模式不支持代理的问题
+- ✅ **后端HDFS API代理**: 添加完整的HDFS API代理端点（GET、PUT、POST、DELETE）
+- ✅ **环境适配**: 前端根据开发/生产环境自动选择API调用方式
+- ✅ **统一认证**: 生产环境下HDFS认证统一由后端处理，提高安全性
+
+### v2.1.0
 - ✅ **修复网络配置问题**: 前端和后端服务正确绑定到 `0.0.0.0`，支持外网访问
 - ✅ **生产环境Session优化**: 使用文件存储替代内存存储，消除MemoryStore警告
 - ✅ **Vite Preview配置优化**: 修复Docker容器中preview命令的网络绑定问题
@@ -681,3 +687,23 @@ npm run server &
 2. **生产阶段** (`production`): 只保留生产依赖和构建产物
 
 这样既保证了构建成功，又保持了最终镜像的精简。
+
+### HDFS API 404 错误
+
+**问题症状**: 前端显示 `Failed to load resource: the server responded with a status of 404 (Not Found)` 错误，路径类似 `/namenode-api/?op=LISTSTATUS`
+
+**原因**: Vite 的代理配置只在开发模式下生效，在生产环境（Docker容器使用`npm run preview`）中不起作用。
+
+**解决方案**: 已在 v2.1.1 中修复，前端会根据环境自动选择：
+- **开发环境**: 使用 Vite 代理 (`/namenode-api`)
+- **生产环境**: 使用后端 API 代理 (`/api/hdfs`)
+
+**验证修复**:
+```bash
+# 测试后端HDFS API代理
+curl "http://localhost:3001/api/hdfs?op=LISTSTATUS"
+
+# 应该返回HDFS目录列表JSON数据
+```
+
+### Docker 启动失败
