@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
+    "preview": "vite preview --host 0.0.0.0 --port 5173",
     "server": "node server.js"
   },
   "dependencies": {
@@ -27,6 +27,7 @@
     "react-audio-player": "^0.17.0",
     "react-dom": "^18.3.1",
     "react-pdf": "^7.7.0",
+    "session-file-store": "^1.5.0",
     "vite-plugin-node-polyfills": "^0.23.0",
     "whatwg-fetch": "^3.6.20"
   },

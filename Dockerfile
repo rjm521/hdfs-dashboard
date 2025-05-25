@@ -68,13 +68,21 @@ RUN echo '#!/bin/sh' > start.sh && \
     echo 'BACKEND_PID=$!' >> start.sh && \
     echo 'sleep 2' >> start.sh && \
     echo 'echo "启动前端服务..."' >> start.sh && \
-    echo 'npm run preview --host 0.0.0.0 &' >> start.sh && \
+    echo 'npm run preview &' >> start.sh && \
     echo 'FRONTEND_PID=$!' >> start.sh && \
+    echo 'sleep 2' >> start.sh && \
     echo 'echo "服务启动完成"' >> start.sh && \
-    echo 'echo "前端访问地址: http://localhost:5173"' >> start.sh && \
-    echo 'echo "后端 API 地址: http://localhost:3001"' >> start.sh && \
+    echo 'SERVER_IP=$(hostname -i | awk "{print \$1}")' >> start.sh && \
+    echo 'echo "📱 外网访问地址："' >> start.sh && \
+    echo 'echo "   前端界面: http://\$SERVER_IP:5173"' >> start.sh && \
+    echo 'echo "   后端API:  http://\$SERVER_IP:3001"' >> start.sh && \
+    echo 'echo ""' >> start.sh && \
+    echo 'echo "📱 本地访问地址："' >> start.sh && \
+    echo 'echo "   前端界面: http://localhost:5173"' >> start.sh && \
+    echo 'echo "   后端API:  http://localhost:3001"' >> start.sh && \
+    echo 'echo ""' >> start.sh && \
     echo 'echo "按 Ctrl+C 停止服务"' >> start.sh && \
-    echo 'trap "echo \"正在停止服务...\"; kill $BACKEND_PID $FRONTEND_PID; exit" INT TERM' >> start.sh && \
+    echo 'trap "echo \"正在停止服务...\"; kill \$BACKEND_PID \$FRONTEND_PID; exit" INT TERM' >> start.sh && \
     echo 'wait' >> start.sh && \
     chmod +x start.sh
 

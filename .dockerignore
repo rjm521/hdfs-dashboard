@@ -36,6 +36,9 @@ build
 uploads_tmp/*
 !uploads_tmp/.gitkeep
 
+# Session 存储目录（容器内会重新创建）
+sessions
+
 # 测试覆盖率报告
 coverage
 

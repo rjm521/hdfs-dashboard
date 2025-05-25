@@ -5,9 +5,13 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import session from 'express-session'; // Added for session management
+import FileStore from 'session-file-store'; // 添加文件存储支持
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// 创建文件存储 session store
+const FileStoreSession = FileStore(session);
 
 // 读取应用配置文件
 let appConfig = {};
@@ -39,13 +43,40 @@ const PORT = server.backend.port; // 从配置读取端口
 // Middleware to parse JSON bodies
 app.use(express.json());
 
-// Session configuration
-app.use(session({
-    secret: sessionConfig.secret, // 从配置读取session密钥
-    resave: false,
-    saveUninitialized: true,
-    cookie: { secure: false } // Set to true if using HTTPS
-}));
+// 创建 session 存储目录
+const sessionDir = path.join(__dirname, 'sessions');
+if (!fs.existsSync(sessionDir)) {
+  fs.mkdirSync(sessionDir, { recursive: true });
+}
+
+// Session configuration - 针对生产环境优化
+const sessionConfig_final = {
+  secret: sessionConfig.secret,
+  resave: false,
+  saveUninitialized: false, // 生产环境设为 false
+  cookie: {
+    secure: false, // 如果使用 HTTPS 则设为 true
+    httpOnly: true, // 防止 XSS 攻击
+    maxAge: 24 * 60 * 60 * 1000 // 24小时过期
+  }
+};
+
+// 根据环境选择不同的存储方式
+if (process.env.NODE_ENV === 'production') {
+  // 生产环境使用文件存储
+  sessionConfig_final.store = new FileStoreSession({
+    path: sessionDir,
+    ttl: 86400, // 24小时 TTL
+    retries: 3,
+    logFn: () => {} // 禁用文件存储的日志输出
+  });
+  console.log(`生产环境: 使用文件存储session (${sessionDir})`);
+} else {
+  // 开发环境可以继续使用内存存储
+  console.log('开发环境: 使用内存存储session');
+}
+
+app.use(session(sessionConfig_final));
 
 // 使用配置中的管理员账户信息
 const adminConfig = {
