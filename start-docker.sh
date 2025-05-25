@@ -174,6 +174,34 @@ cleanup_container() {
     print_success "容器清理完成 ✓"
 }
 
+# 获取服务器IP地址
+get_server_ip() {
+    # 尝试多种方法获取外网IP
+    local server_ip=""
+
+    # 方法1: 获取主要网络接口IP
+    if command -v hostname &> /dev/null; then
+        server_ip=$(hostname -I | awk '{print $1}' 2>/dev/null)
+    fi
+
+    # 方法2: 如果上面失败，尝试ip命令
+    if [ -z "$server_ip" ] && command -v ip &> /dev/null; then
+        server_ip=$(ip route get 8.8.8.8 | awk '{print $7; exit}' 2>/dev/null)
+    fi
+
+    # 方法3: 如果都失败，尝试ifconfig
+    if [ -z "$server_ip" ] && command -v ifconfig &> /dev/null; then
+        server_ip=$(ifconfig | grep 'inet ' | grep -v '127.0.0.1' | head -1 | awk '{print $2}' | sed 's/addr://')
+    fi
+
+    # 如果还是没有找到，使用localhost作为后备
+    if [ -z "$server_ip" ]; then
+        server_ip="localhost"
+    fi
+
+    echo "$server_ip"
+}
+
 # 启动容器
 start_container() {
     local frontend_port=${1:-$FRONTEND_PORT}
@@ -215,12 +243,25 @@ start_container() {
         print_success "容器启动成功 ✓"
 
         if [ "$mode" = "detached" ]; then
+            # 获取服务器IP
+            local server_ip=$(get_server_ip)
+
             print_info "服务访问地址："
-            print_success "  前端界面: http://localhost:$frontend_port"
-            print_success "  后端API:  http://localhost:$backend_port"
+            print_success "  前端界面: http://$server_ip:$frontend_port"
+            print_success "  后端API:  http://$server_ip:$backend_port"
+
+            if [ "$server_ip" != "localhost" ]; then
+                print_info ""
+                print_info "本地访问地址："
+                print_info "  前端界面: http://localhost:$frontend_port"
+                print_info "  后端API:  http://localhost:$backend_port"
+            fi
+
             print_info ""
-            print_info "查看日志: $0 logs"
-            print_info "停止服务: $0 stop"
+            print_info "管理命令："
+            print_info "  查看日志: $0 logs"
+            print_info "  停止服务: $0 stop"
+            print_info "  查看状态: $0 status"
         fi
     else
         print_error "容器启动失败！"

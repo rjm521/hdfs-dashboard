@@ -198,8 +198,9 @@ app.post('/upload-to-hdfs-via-server', upload.single('file'), (req, res) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`后端服务器运行在 http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`后端服务器运行在 http://0.0.0.0:${PORT}`);
+  console.log(`外网访问地址: http://YOUR_SERVER_IP:${PORT}`);
   console.log(`临时上传目录: ${UPLOAD_DIR}`);
   console.log(`HDFS配置: ${hdfs.namenode.scheme}://${hdfs.namenode.host}:${hdfs.namenode.port}`);
 });

@@ -100,9 +100,26 @@ if errorlevel 1 (
 
 echo [成功] 容器启动成功 ✓
 echo.
-echo 服务访问地址：
-echo   前端界面: http://localhost:%FRONTEND_PORT%
-echo   后端API:  http://localhost:%BACKEND_PORT%
+
+:: 获取服务器IP地址
+for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /c:"IPv4" ^| findstr /v "127.0.0.1" ^| findstr /v "169.254"') do (
+    for /f "tokens=1" %%b in ("%%a") do set SERVER_IP=%%b
+)
+
+:: 如果没有找到IP，使用localhost
+if not defined SERVER_IP set SERVER_IP=localhost
+
+echo 外网访问地址：
+echo   前端界面: http://%SERVER_IP%:%FRONTEND_PORT%
+echo   后端API:  http://%SERVER_IP%:%BACKEND_PORT%
+
+if not "%SERVER_IP%"=="localhost" (
+    echo.
+    echo 本地访问地址：
+    echo   前端界面: http://localhost:%FRONTEND_PORT%
+    echo   后端API:  http://localhost:%BACKEND_PORT%
+)
+
 echo.
 echo 管理命令：
 echo   查看日志: %~nx0 logs

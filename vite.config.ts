@@ -40,6 +40,7 @@ export default defineConfig({
     NodeModulesPolyfillPlugin(),
   ],
   server: {
+    host: '0.0.0.0', // 绑定到所有网络接口，允许外网访问
     port: server.frontend.port,
     proxy: {
       // Proxy for NameNode/Gateway operations

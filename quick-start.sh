@@ -39,6 +39,19 @@ docker rm $CONTAINER_NAME 2>/dev/null || true
 echo "🏗️  构建Docker镜像..."
 docker build -t $IMAGE_NAME .
 
+# 获取服务器IP地址
+get_server_ip() {
+    # 尝试获取主要网络接口IP
+    local server_ip=""
+    if command -v hostname &> /dev/null; then
+        server_ip=$(hostname -I | awk '{print $1}' 2>/dev/null)
+    fi
+    if [ -z "$server_ip" ]; then
+        server_ip="localhost"
+    fi
+    echo "$server_ip"
+}
+
 # 启动容器
 echo "🚀 启动容器..."
 docker run -d \
@@ -52,9 +65,20 @@ docker run -d \
 
 echo "✅ 启动完成！"
 echo ""
-echo "📱 访问地址："
-echo "   前端界面: http://localhost:5173"
-echo "   后端API:  http://localhost:3001"
+
+# 获取并显示访问地址
+SERVER_IP=$(get_server_ip)
+echo "📱 外网访问地址："
+echo "   前端界面: http://$SERVER_IP:5173"
+echo "   后端API:  http://$SERVER_IP:3001"
+
+if [ "$SERVER_IP" != "localhost" ]; then
+    echo ""
+    echo "📱 本地访问地址："
+    echo "   前端界面: http://localhost:5173"
+    echo "   后端API:  http://localhost:3001"
+fi
+
 echo ""
 echo "🔧 管理命令："
 echo "   查看日志: docker logs -f $CONTAINER_NAME"

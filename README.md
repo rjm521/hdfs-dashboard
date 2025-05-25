@@ -278,6 +278,49 @@ docker volume ls
 docker volume inspect hdfs-dashboard_uploads_tmp
 ```
 
+## 网络配置说明
+
+### 外网访问配置
+
+本项目已配置为支持外网访问：
+
+- **前端服务**: Vite开发服务器绑定到 `0.0.0.0:5173`，允许外网访问
+- **后端服务**: Node.js服务器绑定到 `0.0.0.0:3001`，允许外网访问
+- **Docker端口映射**: 容器端口映射到主机的所有网络接口
+
+### 访问地址
+
+启动脚本会自动检测并显示：
+- **外网访问地址**: `http://YOUR_SERVER_IP:PORT` (其他机器可以访问)
+- **本地访问地址**: `http://localhost:PORT` (仅本机访问)
+
+### 防火墙配置
+
+如果无法从外网访问，请检查防火墙设置：
+
+```bash
+# Ubuntu/Debian
+sudo ufw allow 5173
+sudo ufw allow 3001
+
+# CentOS/RHEL
+sudo firewall-cmd --permanent --add-port=5173/tcp
+sudo firewall-cmd --permanent --add-port=3001/tcp
+sudo firewall-cmd --reload
+
+# 检查端口监听状态
+netstat -tlnp | grep :5173
+netstat -tlnp | grep :3001
+```
+
+### 安全注意事项
+
+⚠️ **生产环境安全建议**:
+- 建议在生产环境中配置反向代理（如Nginx）
+- 使用HTTPS保护数据传输
+- 配置适当的防火墙规则，限制访问源IP
+- 定期更新管理员密码和session密钥
+
 ## 使用说明
 
 *   打开浏览器并访问应用运行的地址。
