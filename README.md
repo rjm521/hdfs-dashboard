@@ -74,9 +74,13 @@ hdfs-dashboard/
 ├── app.config.json             # 应用主配置文件
 ├── app.config.production.json  # 生产环境配置模板
 ├── start-linux.sh              # Linux 一键启动脚本
+├── quick-start-example.sh      # 快速启动示例脚本
+├── fix-crypto-error.sh         # crypto 构建错误修复脚本
+├── fix-build-error.sh          # 通用构建错误修复脚本
+├── push-changes.sh             # Git 推送脚本
 ├── debug-docker.sh             # Docker 调试工具脚本
 ├── package.json                # 项目依赖和脚本
-├── vite.config.ts              # Vite 配置文件 (包含代理设置)
+├── vite.config.ts              # Vite 配置文件 (包含代理设置和 polyfill)
 ├── Dockerfile                  # Docker 镜像构建文件
 ├── docker-compose.yml          # Docker Compose 编排文件
 ├── .dockerignore               # Docker 构建忽略文件
@@ -675,7 +679,53 @@ curl -k -u "username:password" "https://9.134.167.146:8443/gateway/fithdfs/webhd
 
 ### 常见问题与解决方案
 
-#### 1. Docker环境vs本机环境差异
+#### 1. crypto.getRandomValues 构建错误 🆕
+
+**问题现象**: 运行 `start-linux.sh` 时出现类似错误：
+```
+TypeError: crypto$2.getRandomValues is not a function
+```
+
+**原因分析**:
+- Node.js 版本兼容性问题
+- 缺少必要的 crypto polyfill
+- Vite 配置不完整
+
+**🚀 一键修复方案**:
+```bash
+# 使用专门的修复脚本
+chmod +x fix-crypto-error.sh
+./fix-crypto-error.sh
+```
+
+**📋 手动修复步骤**:
+```bash
+# 1. 检查 Node.js 版本
+node --version  # 建议 >= v16
+
+# 2. 清理环境
+rm -rf node_modules package-lock.json dist
+
+# 3. 安装 polyfill 依赖
+npm install --save-dev @types/node crypto-browserify buffer path-browserify
+
+# 4. 设置环境变量
+export NODE_OPTIONS="--openssl-legacy-provider --max-old-space-size=4096"
+
+# 5. 重新构建
+npm run build
+
+# 6. 如果仍然失败，尝试开发模式
+npx vite build --mode development
+```
+
+**⚡ 绕过方案**:
+如果构建仍然失败，可以直接使用开发模式启动：
+```bash
+./start-linux.sh start --dev  # 跳过构建，直接开发模式
+```
+
+#### 2. Docker环境vs本机环境差异
 
 **问题现象**: 项目在本机可以正常运行（`npm run dev`），但在Docker中启动失败或功能异常。
 

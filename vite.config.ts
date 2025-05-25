@@ -31,6 +31,9 @@ try {
 const { hdfs, server } = appConfig;
 
 export default defineConfig({
+  define: {
+    global: 'globalThis',
+  },
   plugins: [
     react(),
     NodeGlobalsPolyfillPlugin({
@@ -39,6 +42,9 @@ export default defineConfig({
     }),
     NodeModulesPolyfillPlugin(),
   ],
+  optimizeDeps: {
+    include: ['buffer', 'crypto-browserify'],
+  },
   server: {
     host: '0.0.0.0', // 绑定到所有网络接口，允许外网访问
     port: server.frontend.port,
@@ -168,6 +174,7 @@ export default defineConfig({
     alias: {
       buffer: 'buffer',
       path: 'path-browserify',
+      crypto: 'crypto-browserify',
     },
   },
 });

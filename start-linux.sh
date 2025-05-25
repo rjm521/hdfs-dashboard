@@ -227,12 +227,55 @@ build_frontend() {
     cd "$SCRIPT_DIR"
 
     log_info "开始构建前端..."
-    npm run build
 
-    if [ -d "dist" ]; then
-        log_success "前端构建完成"
+    # 设置 Node.js 环境变量以解决常见的构建问题
+    export NODE_OPTIONS="--openssl-legacy-provider --max-old-space-size=4096"
+
+    # 尝试构建
+    if npm run build; then
+        if [ -d "dist" ]; then
+            log_success "前端构建完成"
+            return 0
+        else
+            log_error "构建命令执行成功但未生成 dist 目录"
+        fi
     else
-        log_error "前端构建失败"
+        log_warning "标准构建失败，尝试其他方案..."
+
+        # 检查是否是 crypto.getRandomValues 错误
+        if npm run build 2>&1 | grep -q "crypto.*getRandomValues"; then
+            log_info "检测到 crypto.getRandomValues 错误，执行修复..."
+
+            # 方案1: 清理依赖重新安装
+            log_info "方案1: 清理依赖重新安装..."
+            rm -rf node_modules package-lock.json
+            npm install
+
+            # 方案2: 安装必要的依赖
+            log_info "方案2: 安装额外依赖..."
+            npm install --save-dev @types/node
+
+            # 方案3: 使用开发模式构建
+            log_info "方案3: 尝试开发模式构建..."
+            if npx vite build --mode development; then
+                log_success "开发模式构建成功"
+                return 0
+            fi
+
+            # 方案4: 降级构建
+            log_info "方案4: 尝试降级构建..."
+            export NODE_OPTIONS="--openssl-legacy-provider --max-old-space-size=2048"
+            if npm run build; then
+                log_success "降级构建成功"
+                return 0
+            fi
+        fi
+
+        # 最后尝试: 跳过构建，使用开发模式
+        log_warning "所有构建方案都失败了"
+        log_info "建议使用开发模式启动: ./start-linux.sh start --dev"
+        log_info "或手动修复构建问题后重试"
+
         return 1
     fi
 }
