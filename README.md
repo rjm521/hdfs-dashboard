@@ -87,6 +87,53 @@ hdfs-dashboard/
 └── README.md                   # 本文档
 ```
 
+## 常见问题解决
+
+### Crypto 构建错误
+
+如果遇到以下错误信息：
+```
+TypeError: crypto$2.getRandomValues is not a function
+```
+
+或者Vite配置警告：
+```
+[WARNING] Duplicate key "define" in object literal
+```
+
+**自动修复方法：**
+1. 使用提供的修复脚本：
+   ```bash
+   chmod +x manual-fix-crypto.sh
+   ./manual-fix-crypto.sh
+   ```
+
+**手动修复方法：**
+1. 清理环境和缓存：
+   ```bash
+   rm -rf node_modules package-lock.json dist .vite
+   ```
+
+2. 重新安装依赖：
+   ```bash
+   npm install
+   ```
+
+3. 安装必要的polyfill依赖：
+   ```bash
+   npm install crypto-browserify@^3.12.0 process@^0.11.10 buffer@^6.0.3 path-browserify@^1.0.1
+   ```
+
+4. 设置环境变量并启动：
+   ```bash
+   NODE_OPTIONS="--openssl-legacy-provider --max-old-space-size=4096" npm run dev
+   ```
+
+**如果问题持续：**
+- 尝试使用遗留模式：`npm install --legacy-peer-deps`
+- 检查Node.js版本：建议使用Node.js 16.x 或 18.x
+- 清理全局npm缓存：`npm cache clean --force`
+
 ## 先决条件
 
 ### 传统部署

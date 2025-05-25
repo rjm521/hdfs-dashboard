@@ -33,6 +33,7 @@ const { hdfs, server } = appConfig;
 export default defineConfig({
   define: {
     global: 'globalThis',
+    'process.env': process.env,
   },
   plugins: [
     react(),
@@ -43,13 +44,12 @@ export default defineConfig({
     NodeModulesPolyfillPlugin(),
   ],
   optimizeDeps: {
-    include: ['buffer', 'crypto-browserify'],
+    include: ['buffer', 'crypto-browserify', 'process'],
   },
   server: {
-    host: '0.0.0.0', // 绑定到所有网络接口，允许外网访问
+    host: '0.0.0.0',
     port: server.frontend.port,
     proxy: {
-      // Proxy for NameNode/Gateway operations
       '/namenode-api': {
         target: `${hdfs.namenode.scheme}://${hdfs.namenode.host}:${hdfs.namenode.port}`,
         changeOrigin: true,
@@ -60,10 +60,9 @@ export default defineConfig({
             console.log(`[NameNode PROXY REQ] ${req.method} ${proxyReq.path} (Original URL: ${req.url})`);
             const auth = Buffer.from(`${hdfs.auth.username}:${hdfs.auth.password}`).toString('base64');
             proxyReq.setHeader('Authorization', `Basic ${auth}`);
-            // Forward all original headers from the client that might be important
             Object.keys(req.headers).forEach(key => {
-              if (key.toLowerCase() !== 'host' && key.toLowerCase() !== 'authorization') { // Don't overwrite host or our auth
-                if (req.headers[key]) { // Check if header value is defined
+              if (key.toLowerCase() !== 'host' && key.toLowerCase() !== 'authorization') {
+                if (req.headers[key]) {
                   proxyReq.setHeader(key, req.headers[key] as string | string[]);
                 }
               }
@@ -77,7 +76,7 @@ export default defineConfig({
             res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Cache-Control, Pragma, Expires, Content-Length');
             res.setHeader('Access-Control-Expose-Headers', 'Location, Content-Type, Content-Length, Date, Server, Cache-Control, Pragma, Expires');
 
-            const originalLocation = proxyRes.headers['location']; // Headers might be lowercased by node-http-proxy
+            const originalLocation = proxyRes.headers['location'];
 
             if (proxyRes.statusCode === 307 && originalLocation) {
               console.log('[NameNode PROXY RES] Original redirect Location header found:', originalLocation);
@@ -96,27 +95,21 @@ export default defineConfig({
           });
           proxy.on('error', (err: any, req: any, res: any) => {
             console.error(`[NameNode PROXY ERROR] for ${req.url}:`, err);
-            if (res && !res.headersSent) { // Check if res is defined and headers are not sent
+            if (res && !res.headersSent) {
               res.writeHead(500, { 'Content-Type': 'text/plain' });
               res.end('NameNode Proxy Error: ' + err.message);
             } else if (res) {
-              res.end(); // If headers sent, just end the response
+              res.end();
             }
           });
         },
       },
-      // Proxy for DataNode operations
-      // Note: The target for this will be set dynamically based on the redirect from NameNode,
-      // but we need a placeholder here. The actual target is the DataNode.
       '/datanode-api': {
-        // This target might be different for different datanodes,
-        // but the important part is the path rewrite and configure logic.
-        target: `${hdfs.datanode.scheme}://${hdfs.datanode.host}:${hdfs.datanode.port}`, // 配置化的DataNode地址
+        target: `${hdfs.datanode.scheme}://${hdfs.datanode.host}:${hdfs.datanode.port}`,
         changeOrigin: true,
-        secure: false, // Assuming datanodes might also use HTTP or self-signed certs
+        secure: false,
         rewrite: (path: string) => path.replace(/^\/datanode-api/, ''),
         configure: (proxy: any, options: any) => {
-          // Handle OPTIONS requests explicitly for DataNode proxy
           proxy.on('proxyReq', (proxyReq: any, req: any, res: any) => {
             console.log(`[DataNode PROXY REQ] ${req.method} ${proxyReq.path} (Original URL: ${req.url})`);
             if (req.method === 'OPTIONS') {
@@ -125,30 +118,25 @@ export default defineConfig({
               res.setHeader('Access-Control-Allow-Credentials', 'true');
               res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
               res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Cache-Control, Pragma, Expires, Content-Length');
-              res.setHeader('Access-Control-Max-Age', '86400'); // Cache preflight for 1 day
-              res.writeHead(204); // No Content for OPTIONS success
+              res.setHeader('Access-Control-Max-Age', '86400');
+              res.writeHead(204);
               res.end();
-              return; // Stop further processing for OPTIONS
+              return;
             }
-            // Forward all original headers from the client
             Object.keys(req.headers).forEach(key => {
-              if (key.toLowerCase() !== 'host') { // Don't overwrite host
-                if (req.headers[key]) { // Check if header value is defined
+              if (key.toLowerCase() !== 'host') {
+                if (req.headers[key]) {
                   proxyReq.setHeader(key, req.headers[key] as string | string[]);
                 }
               }
             });
-            // DataNode requests often don't need separate auth if WebHDFS handles it via tokens/redirects
           });
           proxy.on('proxyRes', (proxyRes: any, req: any, res: any) => {
             console.log(`[DataNode PROXY RES] ${proxyRes.statusCode} for ${req.url}`);
-            // Ensure these are always set, even if target doesn't send them (though it should for data requests)
             res.setHeader('Access-Control-Allow-Origin', '*');
             res.setHeader('Access-Control-Allow-Credentials', 'true');
-            // Methods and Headers here are more for the actual PUT, not the preflight (which is handled above)
             res.setHeader('Access-Control-Allow-Methods', 'PUT, OPTIONS');
             res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Content-Length, Authorization');
-            // Expose any headers client might need, like ETag or custom HDFS headers
             res.setHeader('Access-Control-Expose-Headers', 'Location, Content-Type, Content-Length, Date, Server, ETag');
           });
           proxy.on('error', (err: any, req: any, res: any) => {
@@ -162,11 +150,10 @@ export default defineConfig({
           });
         },
       },
-      // Proxy for backend server API (new)
       '/api': {
-        target: `http://localhost:${server.backend.port}`, // 配置化的后端端口
+        target: `http://localhost:${server.backend.port}`,
         changeOrigin: true,
-        rewrite: (path: string) => path.replace(/^\/api/, ''), // Remove /api prefix before forwarding
+        rewrite: (path: string) => path.replace(/^\/api/, ''),
       },
     },
   },
@@ -175,6 +162,12 @@ export default defineConfig({
       buffer: 'buffer',
       path: 'path-browserify',
       crypto: 'crypto-browserify',
+      process: 'process/browser',
+    },
+  },
+  build: {
+    rollupOptions: {
+      external: [],
     },
   },
 });
