@@ -1,5 +1,7 @@
-# 使用官方 Node.js 运行时作为基础镜像
-FROM node:18-alpine
+# ==========================================
+# 构建阶段：安装所有依赖并构建前端
+# ==========================================
+FROM node:18-alpine AS builder
 
 # 设置工作目录
 WORKDIR /app
@@ -10,8 +12,8 @@ RUN apk add --no-cache curl
 # 复制 package.json 和 package-lock.json
 COPY package*.json ./
 
-# 安装项目依赖
-RUN npm ci --only=production
+# 安装所有依赖（包括开发依赖，用于构建）
+RUN npm ci
 
 # 复制项目源代码
 COPY . .
@@ -21,6 +23,30 @@ COPY app.config.json ./
 
 # 构建前端应用
 RUN npm run build
+
+# ==========================================
+# 生产阶段：只保留生产依赖和构建产物
+# ==========================================
+FROM node:18-alpine AS production
+
+# 设置工作目录
+WORKDIR /app
+
+# 安装 curl（用于后端服务与 HDFS 通信）
+RUN apk add --no-cache curl
+
+# 复制 package.json 和 package-lock.json
+COPY package*.json ./
+
+# 只安装生产依赖
+RUN npm ci --only=production && npm cache clean --force
+
+# 从构建阶段复制构建产物
+COPY --from=builder /app/dist ./dist
+
+# 复制运行时需要的文件
+COPY server.js ./
+COPY app.config.json ./
 
 # 创建上传临时目录
 RUN mkdir -p uploads_tmp

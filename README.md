@@ -518,3 +518,47 @@ curl -k -u "username:password" "https://9.134.167.146:8443/gateway/fithdfs/webhd
 ---
 
 **✨ 恭喜您！HDFS文件管理平台已成功完成现代化改造，具备了生产级别的部署能力！**
+
+## Docker部署（推荐）
+
+### 快速开始
+
+1. **构建Docker镜像**
+```bash
+docker build -t hdfs-dashboard .
+```
+
+> ⚠️ **构建问题解决**: 如果遇到`Cannot find package '@vitejs/plugin-react'`错误，这是因为Dockerfile已经使用多阶段构建解决了依赖问题。确保使用最新的Dockerfile。
+
+2. **启动服务**
+```bash
+docker-compose up -d
+```
+
+### 🔧 本地验证构建
+
+如果没有Docker环境，可以在本地验证构建是否正常：
+
+```bash
+# 安装依赖
+npm install
+
+# 验证前端构建
+npm run build
+
+# 检查构建产物
+ls -la dist/
+
+# 启动本地服务进行测试
+npm run preview &
+npm run server &
+```
+
+### Docker构建优化说明
+
+我们的Dockerfile使用了**多阶段构建**来优化镜像大小和构建效率：
+
+1. **构建阶段** (`builder`): 安装所有依赖（包括开发依赖），构建前端应用
+2. **生产阶段** (`production`): 只保留生产依赖和构建产物
+
+这样既保证了构建成功，又保持了最终镜像的精简。
