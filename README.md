@@ -191,9 +191,37 @@ TypeError: crypto$2.getRandomValues is not a function
 
 ## 安装与启动
 
-### 方式一：Linux 一键启动（最简单，推荐）
+### 🚀 超快速启动（推荐新手）
 
-我们提供了功能完整的 Linux 启动脚本，无需 Docker，支持环境检查、依赖安装、服务启动等全流程自动化。
+如果你想要最简单的启动方式，只需要一个命令：
+
+```bash
+# 克隆仓库
+git clone <your-repository-url>
+cd hdfs-dashboard
+
+# 配置HDFS连接（可选，使用默认配置也可以）
+cp app.config.production.json app.config.json
+vim app.config.json
+
+# 一键启动（后台运行，不阻塞终端）
+./start.sh
+```
+
+就这么简单！服务会自动在后台启动，你的终端可以继续做其他事情。
+
+如果需要管理服务：
+```bash
+./microservice.sh status   # 查看状态
+./microservice.sh logs     # 查看日志
+./microservice.sh stop     # 停止服务
+```
+
+---
+
+### 方式一：微服务后台启动（推荐，不阻塞终端）
+
+我们提供了专门的微服务管理脚本，服务会在后台运行，不会阻塞你的终端，让你可以继续进行其他操作。
 
 1.  **克隆仓库**
     ```bash
@@ -220,16 +248,103 @@ TypeError: crypto$2.getRandomValues is not a function
     - `hdfs.paths.gatewayPath`: WebHDFS 网关路径
     - `hdfs.paths.basePath`: HDFS 基础路径
 
-3.  **一键启动**
+3.  **微服务启动**
+    ```bash
+    # 给脚本添加执行权限
+    chmod +x microservice.sh
+
+    # 后台启动所有服务（推荐）
+    ./microservice.sh start
+
+    # 或者使用开发模式启动
+    ./microservice.sh start --dev
+
+    # 指定端口启动
+    ./microservice.sh start -p 8080 -b 3002
+    ```
+
+4.  **管理微服务**
+    ```bash
+    # 查看服务状态
+    ./microservice.sh status
+
+    # 查看服务日志（最近20行）
+    ./microservice.sh logs
+
+    # 实时跟踪日志
+    ./microservice.sh tailf
+
+    # 健康检查
+    ./microservice.sh health
+
+    # 重启所有服务
+    ./microservice.sh restart
+
+    # 停止所有服务
+    ./microservice.sh stop
+
+    # 查看帮助信息
+    ./microservice.sh help
+    ```
+
+5.  **访问应用**
+    启动成功后，服务在后台运行，可直接访问：
+    - 前端界面: http://localhost:5173
+    - 后端 API: http://localhost:3001
+    - 管理员登录: http://localhost:3001/admin/login
+
+#### 微服务启动脚本特性
+
+- 🎯 **后台运行**: 服务在后台运行，终端不被阻塞
+- 🚀 **快速启动**: 自动处理依赖安装和构建过程
+- 📊 **状态监控**: 实时查看服务运行状态和健康检查
+- 📋 **日志管理**: 分离的日志文件和实时日志跟踪
+- 🔄 **进程管理**: 自动处理端口冲突和进程重启
+- 💡 **用户友好**: 清晰的状态提示和错误处理
+- 🛑 **优雅停止**: 正确清理后台进程和资源
+
+### 方式二：Linux 一键启动（交互模式，阻塞终端）
+
+我们还提供了传统的启动脚本，功能完整但会阻塞终端。如果你需要在前台监控服务，可以使用这种方式。
+
+1.  **克隆仓库**
+    ```bash
+    git clone <your-repository-url>
+    cd hdfs-dashboard
+    ```
+
+2.  **配置 HDFS 连接**
+    ```bash
+    # 复制生产环境配置模板（可选）
+    cp app.config.production.json app.config.json
+
+    # 编辑配置文件
+    vim app.config.json
+    ```
+
+    请根据你的 HDFS 环境修改以下关键配置：
+    - `hdfs.namenode.host`: NameNode 主机地址
+    - `hdfs.namenode.port`: NameNode 端口
+    - `hdfs.datanode.host`: DataNode 主机地址
+    - `hdfs.datanode.port`: DataNode 端口
+    - `hdfs.auth.username`: HDFS 用户名
+    - `hdfs.auth.password`: HDFS 密码
+    - `hdfs.paths.gatewayPath`: WebHDFS 网关路径
+    - `hdfs.paths.basePath`: HDFS 基础路径
+
+3.  **启动服务**
     ```bash
     # 给脚本添加执行权限
     chmod +x start-linux.sh
 
-    # 启动服务（自动进行环境检查、依赖安装、服务启动）
+    # 后台启动服务（守护进程模式，推荐）
+    ./start-linux.sh daemon
+
+    # 或者交互模式启动（阻塞终端）
     ./start-linux.sh start
 
-    # 或者使用开发模式启动（热重载）
-    ./start-linux.sh start --dev
+    # 开发模式启动
+    ./start-linux.sh daemon --dev
     ```
 
 4.  **使用其他命令**
@@ -289,7 +404,7 @@ TypeError: crypto$2.getRandomValues is not a function
 - 🔄 **进程管理**: PID 文件管理，避免重复启动
 - 🧹 **清理工具**: 临时文件和日志清理功能
 
-### 方式二：Docker 部署
+### 方式三：Docker 部署
 
 1.  **克隆仓库**
     ```bash
@@ -345,45 +460,6 @@ TypeError: crypto$2.getRandomValues is not a function
     # 停止服务并删除数据卷
     docker-compose down -v
     ```
-
-### 方式三：传统部署
-
-1.  **克隆仓库**
-
-    ```bash
-    git clone <your-repository-url>
-    cd hdfs-dashboard
-    ```
-
-2.  **安装前端依赖**
-
-    ```bash
-    npm install
-    # 或者
-    # yarn install
-    ```
-
-3.  **配置 HDFS 连接**
-
-    修改 `app.config.json` 文件中的配置信息。
-
-4.  **启动后端服务** (用于文件上传)
-
-    打开一个新的终端窗口/标签页:
-    ```bash
-    npm run server
-    # 这将启动 server.js，默认监听在端口 3001
-    ```
-
-5.  **启动前端开发服务器**
-
-    在另一个终端窗口/标签页:
-    ```bash
-    npm run dev
-    # 或者
-    # yarn dev
-    ```
-    应用默认将在 `http://localhost:5173` (或 Vite 配置的其他端口) 上可用。
 
 ## Docker 部署高级配置
 
@@ -1003,6 +1079,98 @@ docker-compose logs > docker-debug.log 2>&1
 ---
 
 **✨ 恭喜您！HDFS文件管理平台已成功完成现代化改造，具备了生产级别的部署能力！**
+
+## 🚀 启动脚本总结
+
+本项目提供了多种启动方式，满足不同场景的需求：
+
+### 📋 启动脚本对比
+
+| 脚本名称 | 运行模式 | 适用场景 | 特点 |
+|----------|----------|----------|------|
+| `start.sh` | 后台运行 | 🌟 **推荐新手** | 一键启动，最简单 |
+| `microservice.sh` | 后台运行 | 🎯 **微服务管理** | 完整的微服务管理功能 |
+| `start-linux.sh` | 前台/后台 | 🔧 **高级用户** | 功能最全面，支持环境检查 |
+| `start-docker.sh` | Docker | 🐳 **容器化部署** | Docker环境部署 |
+
+### 🎯 选择建议
+
+**新手用户**：
+```bash
+./start.sh  # 一键启动，简单易用
+```
+
+**日常开发**：
+```bash
+./microservice.sh start     # 后台启动
+./microservice.sh status    # 查看状态
+./microservice.sh logs      # 查看日志
+./microservice.sh stop      # 停止服务
+```
+
+**生产环境**：
+```bash
+./start-linux.sh daemon     # 守护进程模式
+./start-linux.sh check      # 环境检查
+./start-linux.sh status     # 状态监控
+```
+
+**容器化部署**：
+```bash
+./start-docker.sh           # Docker部署
+```
+
+### 🛠️ 常用命令速查
+
+```bash
+# 快速启动
+./start.sh
+
+# 查看服务状态
+./microservice.sh status
+
+# 查看实时日志
+./microservice.sh tailf
+
+# 健康检查
+./microservice.sh health
+
+# 停止所有服务
+./microservice.sh stop
+
+# 重启服务
+./microservice.sh restart
+
+# 环境检查
+./start-linux.sh check
+
+# 清理临时文件
+./start-linux.sh clean
+```
+
+### 🔧 故障排除
+
+**服务启动失败**：
+```bash
+./start-linux.sh check      # 检查环境
+./microservice.sh logs      # 查看错误日志
+```
+
+**端口冲突**：
+```bash
+./microservice.sh stop      # 停止服务
+./start.sh -p 8080 -b 3002  # 使用其他端口启动
+```
+
+**依赖问题**：
+```bash
+./start-linux.sh install    # 重新安装依赖
+./start-linux.sh build      # 重新构建
+```
+
+---
+
+**🎉 现在你可以轻松管理HDFS文件管理平台了！选择适合你的启动方式，开始使用吧！**
 
 ## Docker部署（推荐）
 

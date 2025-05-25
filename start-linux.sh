@@ -60,7 +60,8 @@ show_help() {
 用法: $0 [命令] [选项]
 
 命令:
-  start           启动服务 (默认命令)
+  start           启动服务 (交互模式，阻塞终端)
+  daemon          启动服务 (守护进程模式，后台运行，默认命令)
   stop            停止服务
   restart         重启服务
   status          查看服务状态
@@ -79,9 +80,11 @@ show_help() {
   -h, --help      显示帮助信息
 
 示例:
-  $0 start                    # 启动服务
-  $0 start -p 8080 -b 3002   # 指定端口启动
-  $0 start --dev             # 开发模式启动
+  $0                          # 守护进程模式启动（推荐）
+  $0 daemon                   # 守护进程模式启动
+  $0 daemon -p 8080 -b 3002   # 指定端口启动（守护进程）
+  $0 daemon --dev             # 开发模式启动（守护进程）
+  $0 start                    # 交互模式启动（阻塞终端）
   $0 stop                     # 停止服务
   $0 status                   # 查看状态
   $0 logs                     # 查看日志
@@ -478,7 +481,57 @@ show_access_info() {
     echo -e "   执行命令: ${YELLOW}$0 stop${NC}"
 }
 
-# 启动服务
+# 启动服务（守护进程模式）
+start_services_daemon() {
+    log_header "启动 $PROJECT_NAME (守护进程模式)"
+
+    # 环境检查
+    if ! check_environment; then
+        log_error "环境检查失败，无法启动服务"
+        return 1
+    fi
+
+    # 检查依赖
+    if [ ! -d "node_modules" ]; then
+        log_info "未找到 node_modules，开始安装依赖..."
+        install_dependencies
+    fi
+
+    # 检查构建文件（生产模式需要）
+    if [ "$DEV_MODE" != "true" ] && [ ! -d "dist" ]; then
+        log_info "未找到构建文件，开始构建前端..."
+        build_frontend
+    fi
+
+    # 测试HDFS连接
+    test_hdfs_connection
+
+    # 启动后端服务
+    if ! start_backend; then
+        log_error "后端服务启动失败"
+        return 1
+    fi
+
+    # 启动前端服务
+    if ! start_frontend; then
+        log_error "前端服务启动失败"
+        # 停止后端服务
+        stop_services
+        return 1
+    fi
+
+    # 显示访问信息
+    show_access_info
+
+    log_success "所有服务已在后台启动完成！"
+    log_info "使用 '$0 status' 查看服务状态"
+    log_info "使用 '$0 logs' 查看服务日志"
+    log_info "使用 '$0 stop' 停止所有服务"
+    echo ""
+    echo -e "${GREEN}✅ 服务已启动，终端已释放，你可以继续其他操作${NC}"
+}
+
+# 启动服务（交互模式）
 start_services() {
     log_header "启动 $PROJECT_NAME"
 
@@ -613,7 +666,7 @@ restart_services() {
     log_header "重启 $PROJECT_NAME"
     stop_services
     sleep 2
-    start_services
+    start_services_daemon
 }
 
 # 查看服务状态
@@ -746,14 +799,14 @@ clean_temp() {
 # 主函数
 main() {
     # 默认值
-    COMMAND="start"
+    COMMAND="daemon"  # 默认使用守护进程模式
     DEV_MODE="false"
     VERBOSE="false"
 
     # 解析命令行参数
     while [[ $# -gt 0 ]]; do
         case $1 in
-            start|stop|restart|status|logs|install|build|check|clean|help)
+            start|daemon|stop|restart|status|logs|install|build|check|clean|help)
                 COMMAND="$1"
                 shift
                 ;;
@@ -787,18 +840,23 @@ main() {
     done
 
     # 显示脚本信息
-    log_header "$PROJECT_NAME Linux 启动脚本 v2.1.2"
+    log_header "$PROJECT_NAME Linux 启动脚本 v2.2.0"
 
     # 执行命令
     case $COMMAND in
         start)
             start_services
             ;;
+        daemon)
+            start_services_daemon
+            ;;
         stop)
             stop_services
             ;;
         restart)
-            restart_services
+            stop_services
+            sleep 2
+            start_services_daemon
             ;;
         status)
             show_status
