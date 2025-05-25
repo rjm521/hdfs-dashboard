@@ -16,11 +16,15 @@ services:
       - NODE_ENV=production
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/admin/login", "||", "exit", "1"]
+      # 改进的健康检查：检查后端服务和HDFS API代理
+      test: |
+        curl -f http://localhost:3001/admin/login > /dev/null 2>&1 && \
+        curl -f http://localhost:5173 > /dev/null 2>&1 && \
+        (curl -s "http://localhost:3001/api/hdfs?op=LISTSTATUS" | grep -q "FileStatuses" || echo "HDFS API warning")
       interval: 30s
-      timeout: 10s
+      timeout: 15s
       retries: 3
-      start_period: 40s
+      start_period: 60s  # 增加启动等待时间
     networks:
       - hdfs-network
 

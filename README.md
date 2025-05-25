@@ -571,6 +571,238 @@ curl -k -u "username:password" "https://9.134.167.146:8443/gateway/fithdfs/webhd
 
 这个项目展现了从传统部署向现代化容器部署的成功转型，通过配置外部化和Docker化，显著提高了项目的可维护性、安全性和部署便利性。建议继续关注安全更新、性能优化和监控完善。
 
+## 🔧 Docker 问题排查指南
+
+### 常见问题与解决方案
+
+#### 1. Docker环境vs本机环境差异
+
+**问题现象**: 项目在本机可以正常运行（`npm run dev`），但在Docker中启动失败或功能异常。
+
+**根本原因**:
+- **本机环境**: 使用 `npm run dev`（开发模式），Vite代理配置生效
+- **Docker环境**: 使用 `npm run preview`（生产模式），Vite代理配置失效
+
+**环境差异对比**:
+| 环境 | 启动方式 | 前端模式 | API路由 | Vite代理状态 |
+|------|----------|----------|---------|-------------|
+| 本机 | `npm run dev` | 开发模式 | `/namenode-api` | ✅ 生效 |
+| Docker | `npm run preview` | 生产模式 | `/api/hdfs` | ❌ 不生效 |
+
+#### 2. 使用Docker诊断工具
+
+我们提供了专门的Docker诊断脚本 `debug-docker.sh`:
+
+```bash
+# 给脚本执行权限
+chmod +x debug-docker.sh
+
+# 运行诊断工具
+./debug-docker.sh
+```
+
+**诊断工具功能**:
+- ✅ 检查Docker环境和版本
+- ✅ 检查容器运行状态
+- ✅ 验证端口映射配置
+- ✅ 测试容器内服务状态
+- ✅ 检查HDFS API代理是否正常
+- ✅ 显示访问地址信息
+- ✅ 查看容器日志输出
+
+#### 3. Docker启动改进 (v2.1.2)
+
+**问题**: 原Dockerfile启动脚本存在时序问题，后端服务启动不完全就启动前端。
+
+**解决方案**: 已改进Dockerfile启动脚本：
+
+**原启动脚本问题**:
+```bash
+node server.js &
+sleep 2  # ⚠️ 固定等待可能不够
+npm run preview &
+```
+
+**改进后启动脚本**:
+```bash
+# 启动后端服务
+node server.js &
+
+# 健康检查等待后端完全启动
+for i in {1..30}; do
+  if curl -s http://localhost:3001/admin/login > /dev/null 2>&1; then
+    echo "✅ 后端服务已启动"
+    break
+  fi
+  sleep 1
+done
+
+# 测试HDFS API代理是否工作
+if curl -s "http://localhost:3001/api/hdfs?op=LISTSTATUS" | grep -q "FileStatuses"; then
+  echo "✅ HDFS API代理工作正常"
+fi
+
+# 启动前端服务
+npm run preview &
+
+# 等待前端服务启动完成
+for i in {1..20}; do
+  if curl -s http://localhost:5173 > /dev/null 2>&1; then
+    echo "✅ 前端服务已启动"
+    break
+  fi
+  sleep 1
+done
+```
+
+#### 4. 改进的健康检查
+
+**Docker Compose健康检查**已升级：
+
+```yaml
+healthcheck:
+  # 检查后端、前端服务以及HDFS API代理
+  test: |
+    curl -f http://localhost:3001/admin/login > /dev/null 2>&1 && \
+    curl -f http://localhost:5173 > /dev/null 2>&1 && \
+    (curl -s "http://localhost:3001/api/hdfs?op=LISTSTATUS" | grep -q "FileStatuses" || echo "HDFS API warning")
+  interval: 30s
+  timeout: 15s
+  retries: 3
+  start_period: 60s  # 增加启动等待时间
+```
+
+#### 5. 常见故障排查步骤
+
+**步骤1: 检查Docker基础环境**
+```bash
+# 检查Docker是否安装
+docker --version
+docker-compose --version
+
+# 检查Docker服务状态
+docker info
+```
+
+**步骤2: 清理并重新构建**
+```bash
+# 停止并清理现有容器
+docker-compose down -v
+
+# 清理Docker缓存
+docker system prune -f
+
+# 重新构建和启动
+docker-compose up --build
+```
+
+**步骤3: 分步诊断服务**
+```bash
+# 查看容器状态
+docker ps -a
+
+# 查看容器日志
+docker logs hdfs-dashboard
+
+# 进入容器调试
+docker exec -it hdfs-dashboard sh
+
+# 在容器内测试服务
+curl http://localhost:3001/admin/login
+curl http://localhost:5173
+curl "http://localhost:3001/api/hdfs?op=LISTSTATUS"
+```
+
+**步骤4: 网络问题排查**
+```bash
+# 检查端口映射
+docker port hdfs-dashboard
+
+# 检查主机端口占用
+netstat -tlnp | grep -E ':3001|:5173'
+
+# 测试外部访问
+curl http://localhost:5173
+curl http://localhost:3001/admin/login
+```
+
+#### 6. 网络配置问题
+
+**容器内localhost解析**:
+- ✅ 容器内使用 `localhost` 是正确的
+- ✅ 服务绑定到 `0.0.0.0` 允许外部访问
+- ✅ Docker端口映射配置正确
+
+**防火墙检查**:
+```bash
+# 检查防火墙状态
+sudo ufw status
+sudo iptables -L
+
+# 如需要，开放端口
+sudo ufw allow 5173
+sudo ufw allow 3001
+```
+
+#### 7. 配置文件问题
+
+**挂载配置检查**:
+```bash
+# 检查配置文件挂载
+docker exec hdfs-dashboard cat /app/app.config.json
+
+# 检查配置文件权限
+ls -la app.config.json
+```
+
+#### 8. 如果问题仍存在
+
+**完整重置方案**:
+```bash
+# 1. 停止所有相关容器
+docker-compose down -v
+docker stop $(docker ps -aq) 2>/dev/null || true
+
+# 2. 清理Docker资源
+docker system prune -a -f
+docker volume prune -f
+
+# 3. 重新克隆代码（如果需要）
+git pull origin main
+
+# 4. 检查配置文件
+cp app.config.production.json app.config.json
+vim app.config.json  # 确保HDFS配置正确
+
+# 5. 重新构建
+docker-compose up --build --force-recreate
+```
+
+**获取帮助**:
+```bash
+# 运行诊断工具获取详细信息
+./debug-docker.sh
+
+# 查看实时日志
+docker-compose logs -f
+
+# 收集完整诊断信息
+docker-compose logs > docker-debug.log 2>&1
+./debug-docker.sh > system-debug.log 2>&1
+```
+
+### Docker vs 本机部署总结
+
+| 部署方式 | 优点 | 缺点 | 适用场景 |
+|----------|------|------|----------|
+| **本机部署** | 快速调试、直接访问 | 环境依赖、配置复杂 | 开发、调试 |
+| **Docker部署** | 环境隔离、一致性部署 | 调试复杂、资源开销 | 生产、测试 |
+
+**推荐使用策略**:
+- 🛠️ **开发阶段**: 使用本机部署（`npm run dev`）进行快速迭代
+- 🧪 **测试验证**: 使用Docker部署验证生产环境兼容性
+- 🚀 **生产部署**: 使用Docker部署确保环境一致性
+
 ---
 
 **✨ 恭喜您！HDFS文件管理平台已成功完成现代化改造，具备了生产级别的部署能力！**
