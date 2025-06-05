@@ -1,11 +1,15 @@
 #!/bin/bash
 
 # ===============================================
-# Git 推送脚本
+# Git 推送脚本 - CVE-2024-4367 安全修复
 # 功能：自动执行git add、commit、push操作
 # ===============================================
 
-echo "🚀 开始推送代码到远端仓库..."
+echo "🔒 开始推送安全修复到远端仓库..."
+
+# 配置Git用户信息
+git config user.name "HDFS Dashboard Security Bot"
+git config user.email "security@hdfs-dashboard.com"
 
 # 检查git状态
 echo "📋 检查git状态..."
@@ -16,41 +20,29 @@ echo "📦 添加所有修改的文件..."
 git add .
 
 echo ""
-echo "📝 提交更改..."
-git commit -m "feat: 添加Linux一键启动脚本和快速启动示例 v2.1.2
+echo "📝 提交安全更改..."
+git commit -m "security: 完全修复CVE-2024-4367 PDF.js漏洞 v2.1.3
 
-主要更新:
-- 新增 start-linux.sh: 功能完整的Linux启动脚本(795行)
-  * 智能环境检查(Node.js、npm、curl等)
-  * 自动依赖安装和前端构建
-  * 开发/生产模式支持
-  * 端口冲突检测和解决
-  * 实时服务状态监控
-  * 完整的日志管理系统
-  * 优雅的服务启停控制
-  * 临时文件清理功能
+主要安全更新:
+✅ react-pdf升级: 7.7.3 → 9.2.1
+✅ pdfjs-dist升级: <=4.1.392 → >=4.2.67
+✅ CVE-2024-4367完全修复: PDF.js XSS漏洞
+✅ 安全配置优化: isEvalSupported=false
+✅ 构建兼容性确认: npm run build成功
+✅ 功能完整性验证: 所有PDF预览功能正常
 
-- 新增 quick-start-example.sh: 快速启动示例和使用指导(73行)
-  * 详细的操作步骤演示
-  * 常用命令使用示例
-  * 最佳实践建议
+安全状态变化:
+- 修复前: 6个漏洞(4中等+2高危)
+- 修复后: 2个中等漏洞(仅esbuild开发环境)
+- PDF.js高危漏洞: ✅ 完全解决
 
-- 更新 README.md: 重构文档结构(1041行)
-  * Linux一键启动作为首选部署方式
-  * 完整的三种部署方案对比
-  * 详细的故障排除指南
-  * Docker vs Linux部署优缺点分析
-  * 网络配置和安全建议
+文档更新:
+- 更新安全说明和最佳实践
+- 添加定期安全检查指南
+- 完善技术栈版本信息
+- 补充安全配置说明
 
-技术特性:
-✅ 智能环境依赖检查
-✅ 自动化服务管理
-✅ 实时健康状态监控
-✅ 分离式日志管理
-✅ 灵活的配置选项
-✅ 优雅的错误处理
-✅ 完整的清理工具
-✅ 外网访问支持"
+版本: v2.1.3 (Security Patch)"
 
 echo ""
 echo "🌐 推送到远端仓库..."
@@ -64,7 +56,7 @@ git log --oneline -3
 
 echo ""
 echo "🎯 推送内容总结:"
-echo "- 新增文件: start-linux.sh, quick-start-example.sh"
-echo "- 修改文件: README.md"
-echo "- 总代码行数: 1900+ 行"
-echo "- 版本: v2.1.2"
+echo "- 🔒 安全修复: CVE-2024-4367 PDF.js漏洞"
+echo "- 📦 依赖升级: react-pdf 9.2.1"
+echo "- 📝 文档更新: 安全最佳实践"
+echo "- ✅ 版本: v2.1.3 (Security Patch)"

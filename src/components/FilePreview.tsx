@@ -5,8 +5,16 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import ReactAudioPlayer from 'react-audio-player';
 import { parse } from 'papaparse';
 
-// Set up PDF worker
+// Set up PDF worker with security configuration
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+
+// Security configuration for CVE-2024-4367: Disable JavaScript evaluation in PDF.js
+const secureOptions = {
+  isEvalSupported: false,
+  disableCreateObjectURL: false,
+  disableWebGL: false,
+  verbosity: 0,
+};
 
 interface FilePreviewProps {
   file: HDFSFile;
@@ -61,7 +69,7 @@ const FilePreview: React.FC<FilePreviewProps> = ({ file, onClose, onSave }) => {
 
   useEffect(() => {
     setEditableContent(file.content || '');
-    
+
     const mimeType = getMimeType();
     if (mimeType === 'text/csv' && file.content && !file.content.startsWith('data:')) {
       try {
@@ -129,7 +137,7 @@ const FilePreview: React.FC<FilePreviewProps> = ({ file, onClose, onSave }) => {
 
   const renderCSVPreview = () => {
     if (!csvData.length) return <p>没有可用的数据</p>;
-    
+
     const headers = Object.keys(csvData[0]);
     return (
       <div className="overflow-x-auto">
@@ -164,21 +172,21 @@ const FilePreview: React.FC<FilePreviewProps> = ({ file, onClose, onSave }) => {
 
   const renderContent = () => {
     const mimeType = getMimeType();
-    
+
     // Image preview
     if (mimeType.startsWith('image/')) {
       return (
         <div className="flex justify-center">
-          <img 
-            src={file.content} 
-            alt={file.name} 
+          <img
+            src={file.content}
+            alt={file.name}
             className="max-w-full max-h-[calc(100vh - 250px)] object-contain"
             loading="lazy"
           />
         </div>
       );
     }
-    
+
     // Audio preview
     if (mimeType.startsWith('audio/')) {
       return (
@@ -191,7 +199,7 @@ const FilePreview: React.FC<FilePreviewProps> = ({ file, onClose, onSave }) => {
         </div>
       );
     }
-    
+
     // PDF preview
     if (mimeType === 'application/pdf') {
       return (
@@ -202,9 +210,10 @@ const FilePreview: React.FC<FilePreviewProps> = ({ file, onClose, onSave }) => {
             error="PDF加载失败"
             loading="正在加载PDF..."
             className="max-h-[calc(100vh - 300px)] overflow-auto"
+            options={secureOptions}
           >
-            <Page 
-              pageNumber={currentPage} 
+            <Page
+              pageNumber={currentPage}
               width={Math.min(window.innerWidth * 0.6, 800)}
               error="页面加载失败"
               loading="正在加载页面..."
@@ -239,9 +248,9 @@ const FilePreview: React.FC<FilePreviewProps> = ({ file, onClose, onSave }) => {
     if (mimeType === 'text/csv') {
       return renderCSVPreview();
     }
-    
+
     // Default to Text preview for text-based types or any unhandled type
-    if (mimeType.startsWith('text/') || 
+    if (mimeType.startsWith('text/') ||
         mimeType === 'application/json' ||
         mimeType === 'application/javascript' ||
         mimeType === 'application/typescript' ||
@@ -275,7 +284,7 @@ const FilePreview: React.FC<FilePreviewProps> = ({ file, onClose, onSave }) => {
     return <p className="text-center p-4">此文件类型 ({mimeType}) 无法预览。请尝试下载查看。</p>;
   };
 
-  const canBeEdited = getMimeType().startsWith('text/') || 
+  const canBeEdited = getMimeType().startsWith('text/') ||
                       getMimeType() === 'application/json' ||
                       (getMimeType() === 'application/octet-stream' && (file.name.endsWith('.log') || file.name.endsWith('.yaml')|| file.name.endsWith('.yml') || file.name.endsWith('.md') || file.name.endsWith('.txt')));
 
@@ -311,8 +320,8 @@ const FilePreview: React.FC<FilePreviewProps> = ({ file, onClose, onSave }) => {
                 <Save size={16} className="inline mr-1" /> 保存
               </button>
             )}
-            <button 
-              onClick={onClose} 
+            <button
+              onClick={onClose}
               className="text-gray-500 hover:text-gray-700 p-1.5 rounded-full hover:bg-gray-100"
               title="关闭"
             >

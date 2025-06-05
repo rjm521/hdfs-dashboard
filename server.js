@@ -25,12 +25,12 @@ try {
   // 默认配置
   appConfig = {
     hdfs: {
-      namenode: { host: '9.134.167.146', port: '8443', scheme: 'https' },
+      namenode: { host: '192.168.1.100', port: '8443', scheme: 'https' },
       auth: { username: 'credit_card_all', password: 'credit_card_all' },
       paths: { gatewayPath: '/gateway/fithdfs/webhdfs/v1/', basePath: 'wx_credit_card_all' }
     },
     server: { backend: { port: 3001 } },
-    admin: { username: 'jimmyjmren', password: 'password' },
+    admin: { username: 'exampleuser', password: 'password' },
     session: { secret: 'your-secret-key-change-this-in-production' }
   };
 }

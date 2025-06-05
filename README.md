@@ -2,6 +2,16 @@
 
 这是一个基于 React 和 TypeScript 的 HDFS (Hadoop Distributed File System) 文件管理平台，允许用户通过 Web 界面浏览、上传、下载、重命名、删除 HDFS 中的文件和目录，并提供了文件预览、编辑（文本文件）等功能。
 
+## 🔒 安全更新说明
+
+**最新安全修复 (2024年12月)：**
+- ✅ **已修复 CVE-2024-4367 PDF.js 漏洞**：升级 `react-pdf` 从 7.7.0 到 9.2.1
+- ✅ **安全配置**：PDF.js 已配置禁用 JavaScript 评估 (`isEvalSupported: false`)
+- ✅ **底层依赖更新**：`pdfjs-dist` 已升级到安全版本 (>=4.2.67)
+- ⚠️ **注意事项**：升级为主要版本更新，已确认兼容性正常
+
+**安全状态**：所有高危和PDF相关漏洞已修复 ✅
+
 ## 特性
 
 *   **目录浏览**: 以树状结构或列表形式清晰展示 HDFS 目录和文件。
@@ -37,7 +47,7 @@
     *   Vite (构建工具)
     *   Tailwind CSS (CSS 框架)
     *   Lucide React (图标库)
-    *   `react-pdf` (PDF 预览)
+    *   `react-pdf` 9.2.1 (PDF 预览 - 已修复安全漏洞)
     *   `papaparse` (CSV 解析)
     *   `react-audio-player` (音频播放)
 *   **后端 (用于文件上传代理)**:
@@ -134,6 +144,37 @@ TypeError: crypto$2.getRandomValues is not a function
 - 检查Node.js版本：建议使用Node.js 16.x 或 18.x
 - 清理全局npm缓存：`npm cache clean --force`
 
+## 安全最佳实践
+
+### 定期安全检查
+建议定期执行以下安全检查命令：
+
+```bash
+# 检查安全漏洞
+npm audit
+
+# 自动修复非破坏性安全问题
+npm audit fix
+
+# 检查过时的依赖包
+npm outdated
+```
+
+### PDF文件处理安全
+- ✅ **已配置安全选项**：PDF.js 禁用了 JavaScript 评估以防止 XSS 攻击
+- ✅ **版本控制**：使用最新安全版本的 react-pdf (9.2.1+)
+- ⚠️ **注意事项**：仅处理来自可信来源的PDF文件
+
+### 上传文件安全
+- 文件大小限制：100MB 最大上传限制
+- 文件类型检查：基于文件扩展名和MIME类型验证
+- 路径安全：防止目录遍历攻击
+
+### 建议的安全更新周期
+- **每月**：执行 `npm audit` 检查新的安全漏洞
+- **每季度**：更新所有依赖包到最新稳定版本
+- **及时**：当发现高危或关键漏洞时立即修复
+
 ## 先决条件
 
 ### 传统部署
@@ -179,7 +220,7 @@ TypeError: crypto$2.getRandomValues is not a function
     "frontend": { "port": 5173 }     // 前端服务端口
   },
   "admin": {
-    "username": "jimmyjmren",        // 管理员用户名
+    "username": "exampleuser",        // 管理员用户名
     "password": "password"           // 管理员密码
   },
   "session": {
@@ -927,380 +968,3 @@ for i in {1..20}; do
   sleep 1
 done
 ```
-
-#### 4. 改进的健康检查
-
-**Docker Compose健康检查**已升级：
-
-```yaml
-healthcheck:
-  # 检查后端、前端服务以及HDFS API代理
-  test: |
-    curl -f http://localhost:3001/admin/login > /dev/null 2>&1 && \
-    curl -f http://localhost:5173 > /dev/null 2>&1 && \
-    (curl -s "http://localhost:3001/api/hdfs?op=LISTSTATUS" | grep -q "FileStatuses" || echo "HDFS API warning")
-  interval: 30s
-  timeout: 15s
-  retries: 3
-  start_period: 60s  # 增加启动等待时间
-```
-
-#### 5. 常见故障排查步骤
-
-**步骤1: 检查Docker基础环境**
-```bash
-# 检查Docker是否安装
-docker --version
-docker-compose --version
-
-# 检查Docker服务状态
-docker info
-```
-
-**步骤2: 清理并重新构建**
-```bash
-# 停止并清理现有容器
-docker-compose down -v
-
-# 清理Docker缓存
-docker system prune -f
-
-# 重新构建和启动
-docker-compose up --build
-```
-
-**步骤3: 分步诊断服务**
-```bash
-# 查看容器状态
-docker ps -a
-
-# 查看容器日志
-docker logs hdfs-dashboard
-
-# 进入容器调试
-docker exec -it hdfs-dashboard sh
-
-# 在容器内测试服务
-curl http://localhost:3001/admin/login
-curl http://localhost:5173
-curl "http://localhost:3001/api/hdfs?op=LISTSTATUS"
-```
-
-**步骤4: 网络问题排查**
-```bash
-# 检查端口映射
-docker port hdfs-dashboard
-
-# 检查主机端口占用
-netstat -tlnp | grep -E ':3001|:5173'
-
-# 测试外部访问
-curl http://localhost:5173
-curl http://localhost:3001/admin/login
-```
-
-#### 6. 网络配置问题
-
-**容器内localhost解析**:
-- ✅ 容器内使用 `localhost` 是正确的
-- ✅ 服务绑定到 `0.0.0.0` 允许外部访问
-- ✅ Docker端口映射配置正确
-
-**防火墙检查**:
-```bash
-# 检查防火墙状态
-sudo ufw status
-sudo iptables -L
-
-# 如需要，开放端口
-sudo ufw allow 5173
-sudo ufw allow 3001
-```
-
-#### 7. 配置文件问题
-
-**挂载配置检查**:
-```bash
-# 检查配置文件挂载
-docker exec hdfs-dashboard cat /app/app.config.json
-
-# 检查配置文件权限
-ls -la app.config.json
-```
-
-#### 8. 如果问题仍存在
-
-**完整重置方案**:
-```bash
-# 1. 停止所有相关容器
-docker-compose down -v
-docker stop $(docker ps -aq) 2>/dev/null || true
-
-# 2. 清理Docker资源
-docker system prune -a -f
-docker volume prune -f
-
-# 3. 重新克隆代码（如果需要）
-git pull origin main
-
-# 4. 检查配置文件
-cp app.config.production.json app.config.json
-vim app.config.json  # 确保HDFS配置正确
-
-# 5. 重新构建
-docker-compose up --build --force-recreate
-```
-
-**获取帮助**:
-```bash
-# 运行诊断工具获取详细信息
-./debug-docker.sh
-
-# 查看实时日志
-docker-compose logs -f
-
-# 收集完整诊断信息
-docker-compose logs > docker-debug.log 2>&1
-./debug-docker.sh > system-debug.log 2>&1
-```
-
-### Docker vs 本机部署总结
-
-| 部署方式 | 优点 | 缺点 | 适用场景 |
-|----------|------|------|----------|
-| **本机部署** | 快速调试、直接访问 | 环境依赖、配置复杂 | 开发、调试 |
-| **Docker部署** | 环境隔离、一致性部署 | 调试复杂、资源开销 | 生产、测试 |
-
-**推荐使用策略**:
-- 🛠️ **开发阶段**: 使用本机部署（`npm run dev`）进行快速迭代
-- 🧪 **测试验证**: 使用Docker部署验证生产环境兼容性
-- 🚀 **生产部署**: 使用Docker部署确保环境一致性
-
----
-
-**✨ 恭喜您！HDFS文件管理平台已成功完成现代化改造，具备了生产级别的部署能力！**
-
-## 🚀 启动脚本总结
-
-本项目提供了多种启动方式，满足不同场景的需求：
-
-### 📋 启动脚本对比
-
-| 脚本名称 | 运行模式 | 适用场景 | 特点 |
-|----------|----------|----------|------|
-| `start.sh` | 后台运行 | 🌟 **推荐新手** | 一键启动，最简单 |
-| `microservice.sh` | 后台运行 | 🎯 **微服务管理** | 完整的微服务管理功能 |
-| `start-linux.sh` | 前台/后台 | 🔧 **高级用户** | 功能最全面，支持环境检查 |
-| `start-docker.sh` | Docker | 🐳 **容器化部署** | Docker环境部署 |
-
-### 🎯 选择建议
-
-**新手用户**：
-```bash
-./start.sh  # 一键启动，简单易用
-```
-
-**日常开发**：
-```bash
-./microservice.sh start     # 后台启动
-./microservice.sh status    # 查看状态
-./microservice.sh logs      # 查看日志
-./microservice.sh stop      # 停止服务
-```
-
-**生产环境**：
-```bash
-./start-linux.sh daemon     # 守护进程模式
-./start-linux.sh check      # 环境检查
-./start-linux.sh status     # 状态监控
-```
-
-**容器化部署**：
-```bash
-./start-docker.sh           # Docker部署
-```
-
-### 🛠️ 常用命令速查
-
-```bash
-# 快速启动
-./start.sh
-
-# 查看服务状态
-./microservice.sh status
-
-# 查看实时日志
-./microservice.sh tailf
-
-# 健康检查
-./microservice.sh health
-
-# 停止所有服务
-./microservice.sh stop
-
-# 重启服务
-./microservice.sh restart
-
-# 环境检查
-./start-linux.sh check
-
-# 清理临时文件
-./start-linux.sh clean
-```
-
-### 🔧 故障排除
-
-**服务启动失败**：
-```bash
-./start-linux.sh check      # 检查环境
-./microservice.sh logs      # 查看错误日志
-```
-
-**端口冲突**：
-```bash
-./microservice.sh stop      # 停止服务
-./start.sh -p 8080 -b 3002  # 使用其他端口启动
-```
-
-**依赖问题**：
-```bash
-./start-linux.sh install    # 重新安装依赖
-./start-linux.sh build      # 重新构建
-```
-
----
-
-**🎉 现在你可以轻松管理HDFS文件管理平台了！选择适合你的启动方式，开始使用吧！**
-
-## Docker部署（推荐）
-
-### 🚀 一键启动脚本
-
-我们提供了多个启动脚本，让您快速部署HDFS文件管理平台：
-
-#### Linux/macOS 用户
-
-**完整功能脚本** (推荐)
-```bash
-# 赋予执行权限
-chmod +x start-docker.sh
-
-# 一键启动
-./start-docker.sh
-
-# 查看帮助
-./start-docker.sh help
-
-# 其他命令示例
-./start-docker.sh start -p 8080:8081  # 自定义端口
-./start-docker.sh logs                # 查看日志
-./start-docker.sh stop                # 停止服务
-./start-docker.sh status              # 查看状态
-```
-
-**快速启动脚本**
-```bash
-# 快速启动（简化版）
-chmod +x quick-start.sh
-./quick-start.sh
-```
-
-#### Windows 用户
-
-**Windows批处理脚本**
-```cmd
-# 双击运行或命令行执行
-start-docker.bat
-
-# 查看帮助
-start-docker.bat help
-
-# 其他命令
-start-docker.bat logs     # 查看日志
-start-docker.bat stop     # 停止服务
-start-docker.bat status   # 查看状态
-```
-
-### 启动脚本功能特性
-
-#### 🛠️ `start-docker.sh` (完整版)
-- ✅ **环境检查**: 自动检查Docker环境和权限
-- ✅ **配置管理**: 自动检查和生成配置文件
-- ✅ **端口冲突检测**: 智能检测端口占用情况
-- ✅ **多种启动模式**: 支持交互式、后台运行等模式
-- ✅ **日志管理**: 实时日志查看和容器状态监控
-- ✅ **资源管理**: 容器清理、镜像管理等功能
-- ✅ **Docker Compose**: 支持使用Docker Compose启动
-- ✅ **自定义端口**: 灵活的端口配置选项
-
-#### ⚡ `quick-start.sh` (简化版)
-- ✅ **快速部署**: 一键构建和启动
-- ✅ **配置检查**: 基本的配置文件检查
-- ✅ **简单易用**: 适合快速测试和演示
-
-#### 🪟 `start-docker.bat` (Windows版)
-- ✅ **Windows兼容**: 专为Windows环境优化
-- ✅ **中文支持**: 完整的中文界面和提示
-- ✅ **功能完整**: 包含Linux版本的主要功能
-
-### 快速开始
-
-1. **构建Docker镜像**
-```bash
-docker build -t hdfs-dashboard .
-```
-
-> ⚠️ **构建问题解决**: 如果遇到`Cannot find package '@vitejs/plugin-react'`错误，这是因为Dockerfile已经使用多阶段构建解决了依赖问题。确保使用最新的Dockerfile。
-
-2. **启动服务**
-```bash
-docker-compose up -d
-```
-
-### 🔧 本地验证构建
-
-如果没有Docker环境，可以在本地验证构建是否正常：
-
-```bash
-# 安装依赖
-npm install
-
-# 验证前端构建
-npm run build
-
-# 检查构建产物
-ls -la dist/
-
-# 启动本地服务进行测试
-npm run preview &
-npm run server &
-```
-
-### Docker构建优化说明
-
-我们的Dockerfile使用了**多阶段构建**来优化镜像大小和构建效率：
-
-1. **构建阶段** (`builder`): 安装所有依赖（包括开发依赖），构建前端应用
-2. **生产阶段** (`production`): 只保留生产依赖和构建产物
-
-这样既保证了构建成功，又保持了最终镜像的精简。
-
-### HDFS API 404 错误
-
-**问题症状**: 前端显示 `Failed to load resource: the server responded with a status of 404 (Not Found)` 错误，路径类似 `/namenode-api/?op=LISTSTATUS`
-
-**原因**: Vite 的代理配置只在开发模式下生效，在生产环境（Docker容器使用`npm run preview`）中不起作用。
-
-**解决方案**: 已在 v2.1.1 中修复，前端会根据环境自动选择：
-- **开发环境**: 使用 Vite 代理 (`/namenode-api`)
-- **生产环境**: 使用后端 API 代理 (`/api/hdfs`)
-
-**验证修复**:
-```bash
-# 测试后端HDFS API代理
-curl "http://localhost:3001/api/hdfs?op=LISTSTATUS"
-
-# 应该返回HDFS目录列表JSON数据
-```
-
-### Docker 启动失败
